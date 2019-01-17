@@ -1,10 +1,11 @@
 package server_test
 
 import (
+	"autoscaler/fakes"
 	"autoscaler/helpers"
 	"autoscaler/metricsforwarder/config"
-	"autoscaler/metricsforwarder/fakes"
 	. "autoscaler/metricsforwarder/server"
+	"autoscaler/models"
 
 	"fmt"
 	"path/filepath"
@@ -40,9 +41,11 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	testCertDir := "../../../../test-certs"
 	loggregatorConfig := config.LoggregatorConfig{
-		CACertFile:     filepath.Join(testCertDir, "loggregator-ca.crt"),
-		ClientCertFile: filepath.Join(testCertDir, "metron.crt"),
-		ClientKeyFile:  filepath.Join(testCertDir, "metron.key"),
+		TLS: models.TLSCerts{
+			KeyFile:    filepath.Join(testCertDir, "metron.key"),
+			CertFile:   filepath.Join(testCertDir, "metron.crt"),
+			CACertFile: filepath.Join(testCertDir, "loggregator-ca.crt"),
+		},
 	}
 	serverConfig := config.ServerConfig{
 		Port: 2222 + GinkgoParallelNode(),
@@ -60,7 +63,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	policyDB = &fakes.FakePolicyDB{}
 	credentialCache = *cache.New(10*time.Minute, -1)
 	allowedMetricCache = *cache.New(10*time.Minute, -1)
-	httpServer, err := NewServer(lager.NewLogger("test"), conf, policyDB, credentialCache, allowedMetricCache)
+	httpStatusCollector := &fakes.FakeHTTPStatusCollector{}
+	httpServer, err := NewServer(lager.NewLogger("test"), conf, policyDB, credentialCache, allowedMetricCache, httpStatusCollector)
 	Expect(err).NotTo(HaveOccurred())
 	serverUrl = fmt.Sprintf("http://127.0.0.1:%d", conf.Server.Port)
 	serverProcess = ginkgomon.Invoke(httpServer)

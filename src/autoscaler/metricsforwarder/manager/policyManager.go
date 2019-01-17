@@ -12,7 +12,6 @@ import (
 )
 
 type Consumer func(map[string]*models.AppPolicy, chan *models.AppMonitor)
-type GetPoliciesFunc func() map[string]*models.AppPolicy
 
 type PolicyManager struct {
 	logger             lager.Logger
@@ -39,11 +38,6 @@ func NewPolicyManager(logger lager.Logger, clock clock.Clock, interval time.Dura
 		doneChan:           make(chan bool),
 		policyMap:          make(map[string]*models.AppPolicy),
 	}
-}
-func (pm *PolicyManager) GetPolicies() map[string]*models.AppPolicy {
-	pm.pLock.RLock()
-	defer pm.pLock.RUnlock()
-	return pm.policyMap
 }
 func (pm *PolicyManager) Start() {
 	go pm.startPolicyRetrieve()
@@ -79,7 +73,6 @@ func (pm *PolicyManager) startPolicyRetrieve() {
 		case <-pm.doneChan:
 			return
 		case <-tick.C():
-
 		}
 	}
 }
@@ -110,14 +103,16 @@ func (pm *PolicyManager) RefreshAllowedMetricCache(policies map[string]*models.A
 	allowedMetricMap := pm.allowedMetricCache.Items()
 	//Iterating over the cache and replace the allowed metrics for existing policy
 	for applicationId := range allowedMetricMap {
-		scalingPolicy := pm.policyMap[applicationId].ScalingPolicy
-		for _, metrictype := range scalingPolicy.ScalingRules {
-			allowedMetricTypeSet[metrictype.MetricType] = struct{}{}
-		}
-		err := pm.allowedMetricCache.Replace(applicationId, allowedMetricTypeSet, pm.cacheTTL)
-		if err != nil {
-			pm.logger.Error("Error updating allowedMetricCache", err)
-			return err
+		if policy, ok := policies[applicationId]; ok {
+			scalingPolicy := policy.ScalingPolicy
+			for _, metrictype := range scalingPolicy.ScalingRules {
+				allowedMetricTypeSet[metrictype.MetricType] = struct{}{}
+			}
+			err := pm.allowedMetricCache.Replace(applicationId, allowedMetricTypeSet, pm.cacheTTL)
+			if err != nil {
+				pm.logger.Error("Error updating allowedMetricCache", err)
+				return err
+			}
 		}
 	}
 	return nil

@@ -30,6 +30,8 @@ import (
 var (
 	mfPath                string
 	cfg                   config.Config
+	healthport            int
+	healthHttpClient      *http.Client
 	configFile            *os.File
 	httpClient            *http.Client
 	req                   *http.Request
@@ -102,13 +104,16 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	grpcIngressTestServer.Start()
 
-	cfg.LoggregatorConfig.CACertFile = filepath.Join(testCertDir, "loggregator-ca.crt")
-	cfg.LoggregatorConfig.ClientCertFile = filepath.Join(testCertDir, "metron.crt")
-	cfg.LoggregatorConfig.ClientKeyFile = filepath.Join(testCertDir, "metron.key")
+	cfg.LoggregatorConfig.TLS.CACertFile = filepath.Join(testCertDir, "loggregator-ca.crt")
+	cfg.LoggregatorConfig.TLS.CertFile = filepath.Join(testCertDir, "metron.crt")
+	cfg.LoggregatorConfig.TLS.KeyFile = filepath.Join(testCertDir, "metron.key")
+	cfg.LoggregatorConfig.MetronAddress = grpcIngressTestServer.GetAddr()
 
 	cfg.Logging.Level = "debug"
-	cfg.MetronAddress = grpcIngressTestServer.GetAddr()
+
 	cfg.Server.Port = 10000 + GinkgoParallelNode()
+	healthport = 8000 + GinkgoParallelNode()
+	cfg.Health.Port = healthport
 	cfg.CacheCleanupInterval = 10 * time.Minute
 	cfg.PolicyPollerInterval = 40 * time.Second
 	cfg.Db.PolicyDb = db.DatabaseConfig{
@@ -120,6 +125,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	configFile = writeConfig(&cfg)
 
 	httpClient = &http.Client{}
+	healthHttpClient = &http.Client{}
 })
 
 var _ = SynchronizedAfterSuite(func() {
