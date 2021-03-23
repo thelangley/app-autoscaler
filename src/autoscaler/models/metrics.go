@@ -32,6 +32,13 @@ type AppInstanceMetric struct {
 	Timestamp     int64  `json:"timestamp"`
 }
 
+type ValueMetric struct {
+	NumCPUS       string `json:"numCPUS"`
+	Value         uint32 `json:"value"`
+	Timestamp     int64  `json:"timestamp"`
+	CollectedAt   int64  `json:"collected_at"`
+}
+
 func (m *AppInstanceMetric) GetTimestamp() int64 {
 	return m.Timestamp
 }

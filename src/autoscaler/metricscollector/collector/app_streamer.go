@@ -104,6 +104,15 @@ func (as *appStreamer) processEvent(event *events.Envelope) {
 				as.dataChan <- metric
 			}
 		}
+	} else if event.GetEventType() == events.Envelope_ValueMetric {
+		as.logger.Debug("process-event-get-valuemetric-event", lager.Data{"event": event})
+		valuemetrics := noaa.GetMetricsFromValueEnvelope(as.sclock.Now().UnixNano(), as.value, event)
+		for _, valuemetric := range valuemetrics {
+			as.cache.Put(valuemetric)
+			if as.isMetricsPersistencySupported {
+				as.dataChan <- valuemetric
+			}
+		}
 	} else if event.GetEventType() == events.Envelope_HttpStartStop {
 		as.logger.Debug("process-event-get-httpstartstop-event", lager.Data{"event": event})
 		ss := event.GetHttpStartStop()

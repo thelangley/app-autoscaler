@@ -83,6 +83,8 @@ func (ep *envelopeProcessor) processEnvelope(e *loggregator_v2.Envelope) {
 		_, exist := g.GetMetrics()["memory_quota"]
 		if exist {
 			ep.processContainerMetrics(e.SourceId, uint32(instanceIndex), e.Timestamp, g)
+		if exist {
+			ep.processValueMetrics(e.SourceId, uint32(instanceIndex), e.Timestamp, g)
 		} else {
 			ep.processCustomMetrics(e.SourceId, uint32(instanceIndex), e.Timestamp, g)
 		}
@@ -149,6 +151,18 @@ func (ep *envelopeProcessor) processHttpStartStop(appID string, instanceIndex ui
 
 	ep.numRequests[appID][instanceIndex]++
 	ep.sumReponseTimes[appID][instanceIndex] += (t.Stop - t.Start)
+}
+
+func (ep *envelopeProcessor) processValueMetrics(value uint32, timestamp int64, instanceIndex uint32, g *loggregator_v2.Gauge) {
+	for n, v := range g.GetMetrics() {
+		valueMetric := &models.ValueMetric{
+			InstanceIndex: instanceIndex,
+			CollectedAt:   ep.clock.Now().UnixNano(),
+			Value:         v.Value,
+			Timestamp:     timestamp,
+		}
+		ep.metricChan <- customMetric
+	}
 }
 
 func (ep *envelopeProcessor) processCustomMetrics(appID string, instanceIndex uint32, timestamp int64, g *loggregator_v2.Gauge) {
